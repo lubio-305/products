@@ -48,6 +48,12 @@ class AssignmentRequest(BaseModel):
     role: AssignmentRole
 
 
+class UserAssignmentOut(BaseModel):
+    node_id: int
+    node_name: str
+    role: AssignmentRole
+
+
 class HandoverRequest(BaseModel):
     from_user_id: int
     to_user_id: int

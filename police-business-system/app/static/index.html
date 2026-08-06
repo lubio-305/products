@@ -3,65 +3,49 @@
 <head>
 <meta charset="utf-8" />
 <title>業務管理系統</title>
-<style>
-  body { font-family: "Microsoft JhengHei", sans-serif; margin: 2rem; }
-  #login-box { max-width: 320px; }
-  #app { display: none; }
-  ul.tree { list-style: none; padding-left: 1.2rem; }
-  .node-name { cursor: pointer; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 6px; color: #fff; }
-  .badge.gray { background: #9aa0a6; }
-  .badge.yellow { background: #f2a600; }
-  .badge.red { background: #e05a47; }
-  .badge.dark-red { background: #a12a1d; }
-  .badge.green { background: #2e8b57; }
-  input, button { padding: 4px 8px; margin: 2px 0; }
-</style>
+<link rel="stylesheet" href="/static/common.css" />
 </head>
 <body>
 
-<div id="login-box">
+<div id="login-box" style="max-width:320px; margin: 3rem auto;">
   <h1>業務管理系統登入</h1>
   <input id="username" placeholder="帳號" /><br/>
   <input id="password" type="password" placeholder="密碼" /><br/>
-  <button onclick="login()">登入</button>
-  <p id="login-error" style="color:red"></p>
+  <button id="login-btn" onclick="login()">登入</button>
+  <div id="login-feedback" class="feedback"></div>
 </div>
 
-<div id="app">
-  <h1>業務總覽</h1>
-  <p>登入身份：<span id="whoami"></span> <button onclick="logout()">登出</button></p>
-  <div id="tree"></div>
+<div id="app" style="display:none">
+  <div id="nav-container"></div>
+  <main>
+    <h1>業務總覽</h1>
+    <div id="tree"></div>
+  </main>
 </div>
 
+<script src="/static/common.js"></script>
 <script>
-async function api(path, options = {}) {
-  const res = await fetch(path, { credentials: "include", ...options });
-  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
-  return res.status === 204 ? null : res.json();
-}
-
 async function login() {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
+  const btn = document.getElementById("login-btn");
   try {
-    const user = await api("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    document.getElementById("login-box").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    document.getElementById("whoami").textContent = `${user.display_name}${user.is_admin ? "（管理者）" : ""}`;
-    loadTree();
-  } catch (e) {
-    document.getElementById("login-error").textContent = e.message;
-  }
+    const user = await withFeedback("login-feedback", btn, "登入中…", "登入成功", () =>
+      api("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
+    );
+    enterApp(user);
+  } catch (e) { /* 錯誤訊息已由 withFeedback 顯示 */ }
 }
 
-async function logout() {
-  await api("/api/auth/logout", { method: "POST" });
-  location.reload();
+function enterApp(user) {
+  document.getElementById("login-box").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("nav-container").innerHTML = renderNav(user, "index");
+  loadTree();
 }
 
 async function loadTree() {
@@ -102,10 +86,7 @@ function loadNode(nodeId) {
 (async () => {
   try {
     const user = await api("/api/auth/me");
-    document.getElementById("login-box").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    document.getElementById("whoami").textContent = `${user.display_name}${user.is_admin ? "（管理者）" : ""}`;
-    loadTree();
+    enterApp(user);
   } catch (e) { /* 尚未登入 */ }
 })();
 </script>
