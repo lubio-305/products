@@ -48,18 +48,52 @@
 - **後端**：FastAPI + SQLAlchemy，SQLite 資料庫（8 人規模足夠，檔案型資料庫備份簡單）
 - **前端**：純 HTML + Vanilla JS（`app/static/`），呼叫後端 JSON API，不上重的前端框架
 - **OCR**：Tesseract（繁中語言包），只有在抽不到文字層時才觸發
+- **排程**：APScheduler，每天 00:30 主動把敘獎紀錄補齊到當天（見下方說明）
 - **部署**：Docker Compose，跑在 Synology DS425+ 的 Container Manager 上
+
+## 敘獎紀錄的補齊機制
+
+`AwardRecord`（每一期的敘獎執行紀錄）不是靠承辦人手動建立，而是根據 `AwardCycle`
+的週期設定（季/半年/年 + 起算日）自動推算出來。有兩層機制一起運作：
+
+1. **排程主動補齊**（`app/services/scheduler.py`）：每天凌晨 00:30，把所有生效中
+   的敘獎週期，往前推算到「今天」為止，缺的期數就建起來。應用程式啟動時也會先
+   跑一次，避免剛部署完資料是空的。
+2. **查詢時保底**（`app/routers/awards.py` 呼叫 `ensure_records_up_to_today`）：
+   即使排程還沒跑過或剛好漏掉，只要有人打開節點頁面查看敘獎狀態，一樣會即時
+   補上缺的期數再回傳，確保畫面上看到的永遠是最新狀態。
+
+兩層都呼叫同一個函式，而且這個函式是「冪等」的（用 `period_end` 判斷該期是否已
+存在，重複呼叫不會建出重複紀錄），所以排程和保底可以同時存在、互不打架。
 
 ## 本機開發
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # 含 requirements.txt + 測試用的 pytest/httpx
 DATA_DIR=./data uvicorn app.main:app --reload
 python seed.py admin admin123 管理者姓名   # 建立第一個管理者帳號
 ```
 
 開瀏覽器打開 `http://localhost:8000/static/index.html`。
+
+## 測試
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+`tests/` 涵蓋的範圍：
+- 業務樹的權限邊界（管理者才能建頂層大類；承辦人只能在自己有份的節點下新增子節點）
+- 敘獎狀態計算（尚未到期 / 可開始敘獎 / 即將逾期 / 已逾期 / 已完成）與補齊邏輯（含冪等性）
+- 規定/計畫版本歷史（新版上傳自動標記前一版失效）
+- 附件上傳＋摘要，以及掃描檔觸發 OCR 的判斷（測試用 `monkeypatch` 掛掉真的 OCR 呼叫，
+  不需要在測試環境安裝 tesseract/poppler）
+- 人員異動（交接）：指派轉移＋承辦歷程正確結束/新增
+
+測試會把 `DATA_DIR` 導到一個暫存目錄，並用 `DISABLE_SCHEDULER=1` 關掉背景排程，
+每個測試前都會重建一份乾淨的資料庫，測試之間互不影響（見 `tests/conftest.py`）。
 
 ## 部署到 NAS
 
@@ -75,6 +109,5 @@ docker compose exec app python seed.py admin <密碼> <姓名>
 
 - 目前沒有前端的權限驗證 UI 細節（例如管理者專用頁面），API 層已有權限檢查，
   之後可依實際使用情況加強前端提示。
-- `AwardRecord` 是在查詢時（`ensure_records_up_to_today`）動態補齊，量體變大後
-  可以改成排程（APScheduler）每日跑一次，先產生好紀錄再查詢。
-- 尚未寫自動化測試，建議之後補上 API 層的 pytest 測試。
+- 測試涵蓋核心邏輯與權限邊界，還沒涵蓋每一支 API 的所有錯誤路徑（例如各種
+  找不到節點/找不到人員的 404 情境）。
