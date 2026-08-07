@@ -86,12 +86,14 @@ async function loadAll() {
 
   const regs = await api(`/api/nodes/${nodeId}/regulations`);
   document.getElementById("regulation-list").innerHTML = regs
-    .map((r) => `<li>v${r.version_no} ${r.title}（生效日 ${r.effective_date}${r.expired_date ? "，失效日 " + r.expired_date : "，現行版本"}）</li>`)
+    .map((r) => `<li>v${r.version_no} ${r.title}（生效日 ${r.effective_date}${r.expired_date ? "，失效日 " + r.expired_date : "，現行版本"}）
+      <a href="/api/nodes/${nodeId}/regulations/${r.id}/download">下載</a></li>`)
     .join("") || "<li>尚未上傳</li>";
 
   const atts = await api(`/api/nodes/${nodeId}/attachments`);
   document.getElementById("attachment-list").innerHTML = atts
-    .map((a) => `<li>${a.original_filename}（${a.uploaded_at}）<br/>摘要：${a.summary || "（未填寫）"}</li>`)
+    .map((a) => `<li>${a.original_filename}（${a.uploaded_at}）
+      <a href="/api/nodes/${nodeId}/attachments/${a.id}/download">下載</a><br/>摘要：${a.summary || "（未填寫）"}</li>`)
     .join("") || "<li>尚未上傳</li>";
 
   const records = await api(`/api/nodes/${nodeId}/awards/records`);

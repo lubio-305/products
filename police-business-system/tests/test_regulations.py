@@ -1,4 +1,5 @@
 import io
+from urllib.parse import unquote
 
 
 def _leaf(admin_client, name="防制面"):
@@ -49,3 +50,37 @@ def test_cannot_upload_regulation_to_non_leaf_node(admin_client):
         files={"file": ("v1.pdf", io.BytesIO(b"v1"), "application/pdf")},
     )
     assert resp.status_code == 400
+
+
+def test_can_download_uploaded_regulation(admin_client):
+    node = _leaf(admin_client)
+    uploaded = admin_client.post(
+        f"/api/nodes/{node['id']}/regulations",
+        data={"title": "詐欺防制規定", "effective_date": "2025-01-01"},
+        files={"file": ("rule.pdf", io.BytesIO(b"real file content"), "application/pdf")},
+    ).json()
+
+    resp = admin_client.get(f"/api/nodes/{node['id']}/regulations/{uploaded['id']}/download")
+    assert resp.status_code == 200
+    assert resp.content == b"real file content"
+    # 中文檔名會被瀏覽器/伺服器依 RFC 6266 編碼成 filename*=utf-8''...，解碼回來比對
+    assert "詐欺防制規定_v1.pdf" in unquote(resp.headers["content-disposition"])
+
+
+def test_download_regulation_wrong_node_is_404(admin_client):
+    node_a = _leaf(admin_client, name="防制面")
+    node_b = _leaf(admin_client, name="查緝面")
+    uploaded = admin_client.post(
+        f"/api/nodes/{node_a['id']}/regulations",
+        data={"title": "規定", "effective_date": "2025-01-01"},
+        files={"file": ("v1.pdf", io.BytesIO(b"v1"), "application/pdf")},
+    ).json()
+
+    resp = admin_client.get(f"/api/nodes/{node_b['id']}/regulations/{uploaded['id']}/download")
+    assert resp.status_code == 404
+
+
+def test_download_missing_regulation_is_404(admin_client):
+    node = _leaf(admin_client)
+    resp = admin_client.get(f"/api/nodes/{node['id']}/regulations/9999/download")
+    assert resp.status_code == 404

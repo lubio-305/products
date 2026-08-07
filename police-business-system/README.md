@@ -36,9 +36,12 @@
 - `AssignmentHistory`：完整承辦歷程（節點—承辦人—起訖日期），交接時只結束舊紀錄、
   新增新紀錄，不覆蓋。
 - `RegulationVersion`：規定/計畫的每一次上傳都是新版本，前一版自動標記失效日期。
+  可透過 `GET /api/nodes/{node_id}/regulations/{version_id}/download` 下載該版本
+  的原始檔案（下載檔名會是「規定名稱_v版本號」，比儲存時加了 uuid 前綴的檔名好認）。
 - `AwardCycle` / `AwardRecord`：敘獎週期設定（季/半年/年＋起算日），系統自動算出
   每期的結束日與「結束日 + 1 個月緩衝期」的最終期限，並依剩餘天數計算狀態燈號。
-- `Attachment`：公文/補充資料，含手動填寫的重點摘要；掃描檔會另外跑 OCR。
+- `Attachment`：公文/補充資料，含手動填寫的重點摘要；掃描檔會另外跑 OCR。可透過
+  `GET /api/nodes/{node_id}/attachments/{attachment_id}/download` 下載原始檔案。
 - `NodeChangeLog`：業務樹結構的新增/改名/搬移紀錄。
 
 詳見 `app/models.py`。

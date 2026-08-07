@@ -5,6 +5,7 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -24,6 +25,26 @@ def list_attachments(node_id: int, db: Session = Depends(get_db), user: User = D
         .filter(Attachment.node_id == node_id)
         .order_by(Attachment.uploaded_at.desc())
         .all()
+    )
+
+
+@router.get("/{attachment_id}/download")
+def download_attachment(
+    node_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    attachment = db.get(Attachment, attachment_id)
+    if attachment is None or attachment.node_id != node_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "找不到附件")
+    if not os.path.exists(attachment.file_path):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "檔案已遺失")
+
+    return FileResponse(
+        attachment.file_path,
+        filename=attachment.original_filename,
+        media_type="application/octet-stream",
     )
 
 

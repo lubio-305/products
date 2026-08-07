@@ -6,6 +6,7 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -23,6 +24,29 @@ def list_versions(node_id: int, db: Session = Depends(get_db), user: User = Depe
         .filter(RegulationVersion.node_id == node_id)
         .order_by(RegulationVersion.version_no.desc())
         .all()
+    )
+
+
+@router.get("/{version_id}/download")
+def download_version(
+    node_id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    version = db.get(RegulationVersion, version_id)
+    if version is None or version.node_id != node_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "找不到版本")
+    if not os.path.exists(version.file_path):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "檔案已遺失")
+
+    # 上傳時檔名有加 uuid 前綴避免衝突，下載時換回好辨識的「規定名稱_版本號」
+    ext = os.path.splitext(version.file_path)[1]
+    download_name = f"{version.title}_v{version.version_no}{ext}"
+    return FileResponse(
+        version.file_path,
+        filename=download_name,
+        media_type="application/octet-stream",
     )
 
 
