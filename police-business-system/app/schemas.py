@@ -20,6 +20,13 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+    display_name: str
+    is_admin: bool = False
+
+
 class NodeCreateRequest(BaseModel):
     name: str
     parent_id: int | None = None

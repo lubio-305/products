@@ -17,6 +17,7 @@ function renderNav(user, activePage) {
     { href: "/static/index.html", label: "業務總覽", page: "index" },
   ];
   if (user.is_admin) {
+    links.push({ href: "/static/admin_users.html", label: "帳號管理", page: "users" });
     links.push({ href: "/static/admin_handover.html", label: "人員異動", page: "handover" });
     links.push({ href: "/static/admin_changelog.html", label: "結構異動歷程", page: "changelog" });
   }

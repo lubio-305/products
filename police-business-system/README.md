@@ -72,10 +72,14 @@
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt   # 含 requirements.txt + 測試用的 pytest/httpx
 DATA_DIR=./data uvicorn app.main:app --reload
-python seed.py admin admin123 管理者姓名   # 建立第一個管理者帳號
+python seed.py admin admin123 管理者姓名   # 建立第一個管理者帳號（僅限第一次啟動時用）
 ```
 
 開瀏覽器打開 `http://localhost:8000/static/index.html`。
+
+`seed.py` 只在系統完全空白時，用來建立**第一個**管理者帳號（透過 CLI，因為那時候
+還沒有任何帳號能登入去開「帳號管理」頁面）。之後其餘 7 位承辦人／其他管理者帳號，
+都由管理者登入後在「帳號管理」頁面（`admin_users.html`）新增，不需要再用 CLI。
 
 ## 測試
 
@@ -110,6 +114,7 @@ docker compose exec app python seed.py admin <密碼> <姓名>
 - `index.html`：登入、業務總覽樹狀圖
 - `node.html`：單一業務節點的詳細頁（承辦人、規定版本、附件、敘獎週期），管理者
   另外看得到「指派承辦人」表單
+- `admin_users.html`（僅管理者）：帳號管理——查看現有帳號、新增承辦人／管理者帳號
 - `admin_handover.html`（僅管理者）：人員異動（交接）——選原承辦人、勾選要移轉的
   業務、指定新承辦人與生效日期
 - `admin_changelog.html`（僅管理者）：業務樹結構異動歷程列表
