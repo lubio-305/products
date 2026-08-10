@@ -15,6 +15,7 @@ async function api(path, options = {}) {
 function renderNav(user, activePage) {
   const links = [
     { href: "/static/index.html", label: "業務總覽", page: "index" },
+    { href: "/static/my_uploads.html", label: "我的上傳", page: "my-uploads" },
   ];
   if (user.is_admin) {
     links.push({ href: "/static/admin_users.html", label: "帳號管理", page: "users" });

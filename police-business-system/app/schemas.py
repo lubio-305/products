@@ -109,6 +109,15 @@ class AttachmentOut(BaseModel):
         from_attributes = True
 
 
+class MyUploadOut(BaseModel):
+    type: str  # "regulation" | "attachment"
+    id: int
+    node_id: int
+    node_name: str
+    filename: str
+    uploaded_at: datetime
+
+
 class NodeChangeLogOut(BaseModel):
     id: int
     node_id: int

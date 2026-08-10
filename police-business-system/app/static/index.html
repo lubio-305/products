@@ -19,12 +19,21 @@
   <div id="nav-container"></div>
   <main>
     <h1>業務總覽</h1>
+
+    <div id="new-top-node" style="display:none">
+      <input id="new-top-node-name" placeholder="新業務大類名稱" style="max-width:300px; display:inline-block" />
+      <button id="new-top-node-btn" onclick="createTopNode()">＋ 新增頂層業務</button>
+      <div id="new-top-node-feedback" class="feedback"></div>
+    </div>
+
     <div id="tree"></div>
   </main>
 </div>
 
 <script src="/static/common.js"></script>
 <script>
+let currentUser = null;
+
 async function login() {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
@@ -42,9 +51,13 @@ async function login() {
 }
 
 function enterApp(user) {
+  currentUser = user;
   document.getElementById("login-box").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("nav-container").innerHTML = renderNav(user, "index");
+  if (user.is_admin) {
+    document.getElementById("new-top-node").style.display = "block";
+  }
   loadTree();
 }
 
@@ -59,7 +72,14 @@ async function loadTree() {
     const children = byParent[parentId] || [];
     if (children.length === 0) return "";
     const items = children
-      .map((n) => `<li><span class="node-name" onclick="loadNode(${n.id})">${n.name}</span>${n.is_leaf ? '<span id="badge-' + n.id + '"></span>' : ""}${renderList(n.id)}</li>`)
+      .map(
+        (n) => `<li>
+          <span class="node-name" onclick="loadNode(${n.id})">${n.name}</span>
+          ${n.is_leaf ? '<span id="badge-' + n.id + '"></span>' : ""}
+          <a href="#" onclick="addChildNode(${n.id}, '${n.name.replace(/'/g, "\\'")}'); return false;" title="在這個節點下新增子項目">＋</a>
+          ${renderList(n.id)}
+        </li>`
+      )
       .join("");
     return `<ul class="tree">${items}</ul>`;
   }
@@ -81,6 +101,41 @@ async function loadTree() {
 
 function loadNode(nodeId) {
   window.location.href = `/static/node.html?id=${nodeId}`;
+}
+
+async function createTopNode() {
+  const btn = document.getElementById("new-top-node-btn");
+  const name = document.getElementById("new-top-node-name").value.trim();
+  if (!name) {
+    showFeedback("new-top-node-feedback", "請輸入業務名稱", "error");
+    return;
+  }
+  try {
+    await withFeedback("new-top-node-feedback", btn, "新增中…", `已新增「${name}」`, () =>
+      api("/api/nodes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, parent_id: null }),
+      })
+    );
+    document.getElementById("new-top-node-name").value = "";
+    loadTree();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+async function addChildNode(parentId, parentName) {
+  const name = window.prompt(`在「${parentName}」底下新增子項目，請輸入名稱：`);
+  if (!name || !name.trim()) return;
+  try {
+    await api("/api/nodes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), parent_id: parentId }),
+    });
+    loadTree();
+  } catch (e) {
+    alert(`新增失敗：${e.message}`);
+  }
 }
 
 (async () => {

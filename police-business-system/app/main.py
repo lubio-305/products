@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import assignments, attachments, auth, awards, changelog, handover, nodes, regulations, users
+from app.routers import assignments, attachments, auth, awards, changelog, handover, my_uploads, nodes, regulations, users
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 Base.metadata.create_all(bind=engine)
@@ -32,6 +32,7 @@ app.include_router(attachments.router)
 app.include_router(awards.router)
 app.include_router(changelog.router)
 app.include_router(users.router)
+app.include_router(my_uploads.router)
 
 
 @app.get("/api/health")
