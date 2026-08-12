@@ -51,6 +51,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     display_name = Column(String(100), nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
+    color = Column(String(7), nullable=True)  # 卡片式總覽用，依建立順序自動分配
     created_at = Column(DateTime, default=datetime.utcnow)
 
     assignments = relationship("NodeAssignment", back_populates="user")

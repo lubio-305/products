@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     username: str
     display_name: str
     is_admin: bool
+    color: str | None
 
     class Config:
         from_attributes = True
@@ -53,6 +54,15 @@ class NodeOut(BaseModel):
 class AssignmentRequest(BaseModel):
     user_id: int
     role: AssignmentRole
+
+
+class NodeCardOut(BaseModel):
+    id: int
+    name: str
+    breadcrumb: str
+    primary_user: UserOut | None
+    support_names: list[str]
+    award_status: AwardStatus | None
 
 
 class UserAssignmentOut(BaseModel):

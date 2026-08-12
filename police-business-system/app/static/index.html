@@ -11,7 +11,7 @@
   <h1>業務管理系統登入</h1>
   <input id="username" placeholder="帳號" /><br/>
   <input id="password" type="password" placeholder="密碼" /><br/>
-  <button id="login-btn" onclick="login()">登入</button>
+  <button id="login-btn" onclick="login()"><span class="btn-label">登入</span></button>
   <div id="login-feedback" class="feedback"></div>
 </div>
 
@@ -26,13 +26,18 @@
       <div id="new-top-node-feedback" class="feedback"></div>
     </div>
 
-    <div id="tree"></div>
+    <div id="staff-filter" class="staff-filter"></div>
+    <div id="cards" class="card-grid"></div>
   </main>
 </div>
 
+<script src="/static/icons.js"></script>
 <script src="/static/common.js"></script>
 <script>
 let currentUser = null;
+let allCards = [];
+let allUsers = [];
+let activeFilterUserId = null;
 
 async function login() {
   const username = document.getElementById("username").value;
@@ -58,45 +63,81 @@ function enterApp(user) {
   if (user.is_admin) {
     document.getElementById("new-top-node").style.display = "block";
   }
-  loadTree();
+  loadOverview();
 }
 
-async function loadTree() {
-  const nodes = await api("/api/nodes");
-  const byParent = {};
-  nodes.forEach((n) => {
-    (byParent[n.parent_id] = byParent[n.parent_id] || []).push(n);
-  });
+const STATUS_LABEL = {
+  not_due: ["尚未到期", "gray"],
+  open: ["可開始敘獎", "yellow"],
+  due_soon: ["即將逾期", "red"],
+  overdue: ["已逾期", "dark-red"],
+  done: ["已完成", "green"],
+};
 
-  function renderList(parentId) {
-    const children = byParent[parentId] || [];
-    if (children.length === 0) return "";
-    const items = children
-      .map(
-        (n) => `<li>
-          <span class="node-name" onclick="loadNode(${n.id})">${n.name}</span>
-          ${n.is_leaf ? '<span id="badge-' + n.id + '"></span>' : ""}
-          <a href="#" onclick="addChildNode(${n.id}, '${n.name.replace(/'/g, "\\'")}'); return false;" title="在這個節點下新增子項目">＋</a>
-          ${renderList(n.id)}
-        </li>`
-      )
-      .join("");
-    return `<ul class="tree">${items}</ul>`;
+async function loadOverview() {
+  const [cards, users] = await Promise.all([api("/api/nodes/cards"), api("/api/users")]);
+  allCards = cards;
+  allUsers = users;
+  renderStaffFilter();
+  renderCards();
+}
+
+function renderStaffFilter() {
+  const staffWithCards = allUsers.filter((u) => allCards.some((c) => c.primary_user && c.primary_user.id === u.id));
+  const buttons = staffWithCards
+    .map(
+      (u) => `<button
+        class="${activeFilterUserId === u.id ? "active" : ""}"
+        style="${activeFilterUserId === u.id ? `background:${u.color};border-color:${u.color}` : ""}"
+        onclick="setFilter(${u.id})">
+        <span class="swatch" style="background:${u.color}"></span>${u.display_name}
+      </button>`
+    )
+    .join("");
+  const clearBtn = activeFilterUserId
+    ? `<button onclick="setFilter(null)">${icon("filter")}顯示全部</button>`
+    : "";
+  document.getElementById("staff-filter").innerHTML = buttons + clearBtn;
+}
+
+function setFilter(userId) {
+  activeFilterUserId = userId;
+  renderStaffFilter();
+  renderCards();
+}
+
+function renderCards() {
+  const visible = activeFilterUserId
+    ? allCards.filter((c) => c.primary_user && c.primary_user.id === activeFilterUserId)
+    : allCards;
+
+  if (visible.length === 0) {
+    document.getElementById("cards").innerHTML = `<div class="empty-state">目前沒有業務項目</div>`;
+    return;
   }
 
-  document.getElementById("tree").innerHTML = renderList(null);
-
-  nodes.filter((n) => n.is_leaf).forEach(async (n) => {
-    try {
-      const records = await api(`/api/nodes/${n.id}/awards/records`);
-      const latest = records[records.length - 1];
-      if (latest) {
-        const el = document.getElementById(`badge-${n.id}`);
-        const label = { not_due: ["尚未到期", "gray"], open: ["可開始敘獎", "yellow"], due_soon: ["即將逾期", "red"], overdue: ["已逾期", "dark-red"], done: ["已完成", "green"] }[latest.status];
-        el.outerHTML = `<span class="badge ${label[1]}">${label[0]}</span>`;
-      }
-    } catch (e) { /* 該節點尚未設定敘獎週期 */ }
-  });
+  document.getElementById("cards").innerHTML = visible
+    .map((c) => {
+      const color = c.primary_user ? c.primary_user.color : "#c7ccd1";
+      const owner = c.primary_user
+        ? `<span class="swatch" style="background:${color}"></span>${c.primary_user.display_name}`
+        : `${icon("user")}尚未指派`;
+      const support = c.support_names.length
+        ? `<div class="support">協辦：${c.support_names.join("、")}</div>`
+        : "";
+      const status = c.award_status
+        ? `<div class="card-status"><span class="badge ${STATUS_LABEL[c.award_status][1]}">${STATUS_LABEL[c.award_status][0]}</span></div>`
+        : "";
+      return `<div class="card" style="--card-color:${color}" onclick="loadNode(${c.id})">
+        ${c.breadcrumb ? `<div class="breadcrumb">${c.breadcrumb}</div>` : ""}
+        <div class="title">${c.name}</div>
+        <div class="primary-user">${owner}</div>
+        ${support}
+        ${status}
+        <a href="#" class="add-child" onclick="event.stopPropagation(); addChildNode(${c.id}, '${c.name.replace(/'/g, "\\'")}'); return false;" title="在這個業務下新增子項目">${icon("plus")} 新增子項目</a>
+      </div>`;
+    })
+    .join("");
 }
 
 function loadNode(nodeId) {
@@ -119,7 +160,7 @@ async function createTopNode() {
       })
     );
     document.getElementById("new-top-node-name").value = "";
-    loadTree();
+    loadOverview();
   } catch (e) { /* 已顯示錯誤訊息 */ }
 }
 
@@ -132,7 +173,7 @@ async function addChildNode(parentId, parentName) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim(), parent_id: parentId }),
     });
-    loadTree();
+    loadOverview();
   } catch (e) {
     alert(`新增失敗：${e.message}`);
   }

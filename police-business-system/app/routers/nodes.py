@@ -5,8 +5,17 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_admin
 from app.database import get_db
-from app.models import BusinessNode, NodeAssignment, NodeChangeAction, NodeChangeLog, User
-from app.schemas import NodeCreateRequest, NodeMoveRequest, NodeOut, NodeRenameRequest
+from app.models import (
+    AssignmentRole,
+    AwardCycle,
+    BusinessNode,
+    NodeAssignment,
+    NodeChangeAction,
+    NodeChangeLog,
+    User,
+)
+from app.schemas import NodeCardOut, NodeCreateRequest, NodeMoveRequest, NodeOut, NodeRenameRequest
+from app.services.award_status import compute_status, ensure_records_up_to_today
 
 router = APIRouter(prefix="/api/nodes", tags=["nodes"])
 
@@ -37,6 +46,60 @@ def list_nodes(db: Session = Depends(get_db), user: User = Depends(get_current_u
         NodeOut(id=n.id, name=n.name, parent_id=n.parent_id, is_leaf=n.is_leaf())
         for n in nodes
     ]
+
+
+@router.get("/cards", response_model=list[NodeCardOut])
+def list_node_cards(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """卡片式業務總覽用：每個底層節點一張卡片，含業務大類/子項目的麵包屑、
+    主辦承辦人（含固定顏色）、協辦人員姓名、最新一期敘獎狀態。"""
+    nodes = db.query(BusinessNode).all()
+    by_id = {n.id: n for n in nodes}
+    children_count: dict[int, int] = {}
+    for n in nodes:
+        if n.parent_id is not None:
+            children_count[n.parent_id] = children_count.get(n.parent_id, 0) + 1
+
+    def breadcrumb(node: BusinessNode) -> str:
+        names = []
+        cur = by_id.get(node.parent_id) if node.parent_id else None
+        while cur is not None:
+            names.append(cur.name)
+            cur = by_id.get(cur.parent_id) if cur.parent_id else None
+        return " › ".join(reversed(names))
+
+    cards = []
+    for n in nodes:
+        if children_count.get(n.id, 0) > 0:
+            continue  # 只有葉節點才是卡片，上層節點純粹分類用
+
+        assignments = db.query(NodeAssignment).filter(NodeAssignment.node_id == n.id).all()
+        primary = next((a for a in assignments if a.role == AssignmentRole.PRIMARY), None)
+        support_names = [a.user.display_name for a in assignments if a.role == AssignmentRole.SUPPORT]
+
+        award_status = None
+        cycle = (
+            db.query(AwardCycle)
+            .filter(AwardCycle.node_id == n.id, AwardCycle.active.is_(True))
+            .first()
+        )
+        if cycle is not None:
+            ensure_records_up_to_today(db, cycle)
+            db.commit()
+            latest = max(cycle.records, key=lambda r: r.period_start, default=None)
+            if latest is not None:
+                award_status = compute_status(latest)
+
+        cards.append(
+            NodeCardOut(
+                id=n.id,
+                name=n.name,
+                breadcrumb=breadcrumb(n),
+                primary_user=primary.user if primary else None,
+                support_names=support_names,
+                award_status=award_status,
+            )
+        )
+    return cards
 
 
 @router.post("", response_model=NodeOut, status_code=status.HTTP_201_CREATED)

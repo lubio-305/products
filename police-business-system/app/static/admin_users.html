@@ -13,7 +13,7 @@
 <section>
   <h2>現有帳號</h2>
   <table>
-    <thead><tr><th>帳號</th><th>姓名</th><th>角色</th></tr></thead>
+    <thead><tr><th>顏色</th><th>帳號</th><th>姓名</th><th>角色</th></tr></thead>
     <tbody id="user-body"></tbody>
   </table>
 </section>
@@ -32,12 +32,18 @@
 </section>
 </main>
 
+<script src="/static/icons.js"></script>
 <script src="/static/common.js"></script>
 <script>
 async function loadUsers() {
   const users = await api("/api/users");
   document.getElementById("user-body").innerHTML = users
-    .map((u) => `<tr><td>${u.username}</td><td>${u.display_name}</td><td>${u.is_admin ? "管理者" : "承辦人"}</td></tr>`)
+    .map(
+      (u) => `<tr>
+        <td><span class="swatch" style="background:${u.color || "#c7ccd1"}"></span></td>
+        <td>${u.username}</td><td>${u.display_name}</td><td>${u.is_admin ? "管理者" : "承辦人"}</td>
+      </tr>`
+    )
     .join("");
 }
 

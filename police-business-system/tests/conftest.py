@@ -12,6 +12,7 @@ from app.auth import hash_password
 from app.database import UPLOAD_DIR, Base, SessionLocal, engine
 from app.main import app
 from app.models import User
+from app.services.colors import next_color
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +47,7 @@ def make_user(db, username, password, display_name, is_admin=False):
         password_hash=hash_password(password),
         display_name=display_name,
         is_admin=is_admin,
+        color=next_color(db),
     )
     db.add(user)
     db.commit()

@@ -6,6 +6,7 @@ import sys
 from app.auth import hash_password
 from app.database import Base, SessionLocal, engine
 from app.models import User
+from app.services.colors import next_color
 
 Base.metadata.create_all(bind=engine)
 
@@ -27,6 +28,7 @@ def main():
                 password_hash=hash_password(password),
                 display_name=display_name,
                 is_admin=True,
+                color=next_color(db),
             )
         )
         db.commit()

@@ -7,6 +7,7 @@ from app.auth import hash_password, require_admin
 from app.database import get_db
 from app.models import BusinessNode, NodeAssignment, User
 from app.schemas import UserAssignmentOut, UserCreateRequest, UserOut
+from app.services.colors import next_color
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -30,6 +31,7 @@ def create_user(
         password_hash=hash_password(payload.password),
         display_name=payload.display_name,
         is_admin=payload.is_admin,
+        color=next_color(db),
     )
     db.add(user)
     db.commit()
