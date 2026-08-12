@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>帳號管理</title>
+<link rel="stylesheet" href="/static/common.css" />
+</head>
+<body>
+<div id="nav-container"></div>
+<main>
+<h1>帳號管理</h1>
+
+<section>
+  <h2>現有帳號</h2>
+  <table>
+    <thead><tr><th>顏色</th><th>帳號</th><th>姓名</th><th>角色</th></tr></thead>
+    <tbody id="user-body"></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>新增帳號</h2>
+  <label>帳號（登入用）</label>
+  <input id="new-username" placeholder="例如 chen" />
+  <label>密碼</label>
+  <input id="new-password" type="password" placeholder="至少 8 碼" />
+  <label>姓名</label>
+  <input id="new-display-name" placeholder="例如 陳小明" />
+  <label><input id="new-is-admin" type="checkbox" style="display:inline-block;width:auto" /> 設為管理者</label>
+  <button id="create-user-btn" onclick="createUser()">新增</button>
+  <div id="create-feedback" class="feedback"></div>
+</section>
+</main>
+
+<script src="/static/icons.js"></script>
+<script src="/static/common.js"></script>
+<script>
+async function loadUsers() {
+  const users = await api("/api/users");
+  document.getElementById("user-body").innerHTML = users
+    .map(
+      (u) => `<tr>
+        <td><span class="swatch" style="background:${u.color || "#c7ccd1"}"></span></td>
+        <td>${u.username}</td><td>${u.display_name}</td><td>${u.is_admin ? "管理者" : "承辦人"}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+async function createUser() {
+  const btn = document.getElementById("create-user-btn");
+  const username = document.getElementById("new-username").value.trim();
+  const password = document.getElementById("new-password").value;
+  const displayName = document.getElementById("new-display-name").value.trim();
+  const isAdmin = document.getElementById("new-is-admin").checked;
+
+  if (!username || !password || !displayName) {
+    showFeedback("create-feedback", "帳號、密碼、姓名都要填", "error");
+    return;
+  }
+
+  try {
+    await withFeedback("create-feedback", btn, "新增中…", `已建立帳號「${username}」`, () =>
+      api("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, display_name: displayName, is_admin: isAdmin }),
+      })
+    );
+    document.getElementById("new-username").value = "";
+    document.getElementById("new-password").value = "";
+    document.getElementById("new-display-name").value = "";
+    document.getElementById("new-is-admin").checked = false;
+    await loadUsers();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+(async () => {
+  let user;
+  try {
+    user = await api("/api/auth/me");
+  } catch (e) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  if (!user.is_admin) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  document.getElementById("nav-container").innerHTML = renderNav(user, "users");
+  await loadUsers();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+:root {
+  --color-primary: #2c3e50;
+  --color-primary-dark: #1c2b3a;
+  --color-bg: #f5f6f8;
+  --color-surface: #fff;
+  --color-border: #e0e0e0;
+  --color-text: #222;
+  --color-text-muted: #6b7280;
+  --radius: 8px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+}
+
+body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; margin: 0; color: var(--color-text); background: var(--color-bg); }
+main { max-width: 1000px; margin: 0 auto; padding: var(--space-lg) var(--space-lg); }
+h1 { font-size: 1.4rem; }
+
+.icon { vertical-align: -3px; flex-shrink: 0; }
+
+nav {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+nav a { color: #cfd8e3; text-decoration: none; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 6px; }
+nav a.active, nav a:hover { color: #fff; font-weight: bold; }
+nav .whoami { margin-left: auto; font-size: 0.9rem; color: #cfd8e3; display: inline-flex; align-items: center; gap: 6px; }
+nav .link-btn { background: none; border: 1px solid #cfd8e3; color: #cfd8e3; border-radius: 4px; padding: 3px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+nav .link-btn:hover { color: #fff; border-color: #fff; }
+
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 10px; font-size: 0.78rem; color: #fff; }
+.badge.gray { background: #9aa0a6; }
+.badge.yellow { background: #b8860b; }
+.badge.red { background: #e05a47; }
+.badge.dark-red { background: #a12a1d; }
+.badge.green { background: #2e8b57; }
+
+.feedback { display: none; padding: 8px 12px; border-radius: var(--radius); margin: var(--space-sm) 0; font-size: 0.9rem; }
+.feedback.info { background: #eef3f8; color: var(--color-primary); border: 1px solid #c7d6e5; }
+.feedback.success { background: #e6f4ea; color: #1e6b3c; border: 1px solid #b7e0c5; }
+.feedback.error { background: #fbe9e7; color: #a12a1d; border: 1px solid #f0c2bb; }
+
+ul.tree { list-style: none; padding-left: 1.2rem; }
+.node-name { cursor: pointer; color: var(--color-primary); }
+.node-name:hover { text-decoration: underline; }
+
+input, textarea, select { display: block; margin: 4px 0 8px; padding: 6px; width: 100%; max-width: 400px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit; }
+button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; margin: 2px 0; border: 1px solid var(--color-primary); background: var(--color-primary); color: #fff; border-radius: 4px; cursor: pointer; font-family: inherit; }
+button:hover { background: var(--color-primary-dark); }
+button:disabled { opacity: 0.6; cursor: default; }
+
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--color-border); font-size: 0.9rem; }
+th { background: #f4f6f8; }
+
+section { border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem; }
+li { margin-bottom: 4px; }
+
+/* 承辦人色塊小圓點，帳號管理頁、篩選鈕都會用到 */
+.swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* 承辦人篩選列 */
+.staff-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: var(--space-md) 0; }
+.staff-filter button {
+  background: #fff; color: var(--color-text); border: 1px solid var(--color-border);
+  font-size: 0.85rem; padding: 5px 12px; font-weight: normal;
+}
+.staff-filter button.active { color: #fff; border-color: transparent; }
+.staff-filter button:hover { background: #f0f1f3; }
+.staff-filter button.active:hover { filter: brightness(0.92); }
+
+/* 業務卡片式總覽 */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-md); margin-top: var(--space-md); }
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--card-color, var(--color-primary));
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  cursor: pointer;
+}
+.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+.card .breadcrumb { font-size: 0.72rem; color: var(--color-text-muted); margin-bottom: 2px; }
+.card .title { font-weight: 600; font-size: 1rem; margin-bottom: 8px; }
+.card .primary-user { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 6px; }
+.card .support { font-size: 0.75rem; color: var(--color-text-muted); }
+.card .card-status { margin-top: 8px; }
+.card .add-child { display: block; margin-top: 10px; font-size: 0.78rem; color: var(--color-text-muted); text-decoration: none; }
+.card .add-child:hover { color: var(--color-primary); }
+.empty-state { color: var(--color-text-muted); font-size: 0.9rem; padding: var(--space-md) 0; }
+
+/* 承辦人總覽卡片（第一層：以人為單位） */
+.staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-md); margin-top: var(--space-md); }
+.staff-card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.staff-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+.staff-card .name-row { display: flex; align-items: center; gap: 10px; }
+.staff-card .avatar { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.1rem; flex-shrink: 0; }
+.staff-card .name { font-weight: 700; font-size: 0.95rem; }
+.staff-card .count { font-size: 0.8rem; color: var(--color-text-muted); display: flex; align-items: center; gap: 6px; }
+.staff-card .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.staff-card .tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: #f0f1f3; color: var(--color-text-muted); }
+
+.staff-detail-header { display: flex; align-items: center; gap: 12px; margin: var(--space-md) 0; }
+.staff-detail-header .avatar { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-muted); text-decoration: none; font-size: 0.9rem; }
+.back-link:hover { color: var(--color-primary); }

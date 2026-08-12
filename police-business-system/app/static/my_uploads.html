@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>我的上傳</title>
+<link rel="stylesheet" href="/static/common.css" />
+</head>
+<body>
+<div id="nav-container"></div>
+<main>
+<h1>我的上傳</h1>
+<p>你上傳過的規定/計畫版本、公文附件，依上傳時間排序。</p>
+<div id="uploads-feedback" class="feedback"></div>
+<table>
+  <thead>
+    <tr><th>業務節點</th><th>類型</th><th>檔名</th><th>上傳時間</th><th></th></tr>
+  </thead>
+  <tbody id="uploads-body"></tbody>
+</table>
+</main>
+
+<script src="/static/icons.js"></script>
+<script src="/static/common.js"></script>
+<script>
+const TYPE_LABEL = { regulation: "規定/計畫", attachment: "附件" };
+
+function downloadUrl(item) {
+  const kind = item.type === "regulation" ? "regulations" : "attachments";
+  return `/api/nodes/${item.node_id}/${kind}/${item.id}/download`;
+}
+
+async function loadUploads() {
+  showFeedback("uploads-feedback", "載入中…", "info");
+  try {
+    const uploads = await api("/api/my/uploads");
+    hideFeedback("uploads-feedback");
+
+    document.getElementById("uploads-body").innerHTML = uploads
+      .map(
+        (u) => `<tr>
+          <td><a href="/static/node.html?id=${u.node_id}">${u.node_name}</a></td>
+          <td>${TYPE_LABEL[u.type] || u.type}</td>
+          <td>${u.filename}</td>
+          <td>${u.uploaded_at.replace("T", " ").slice(0, 19)}</td>
+          <td><a href="${downloadUrl(u)}">下載</a></td>
+        </tr>`
+      )
+      .join("") || `<tr><td colspan="5">你還沒有上傳過任何檔案</td></tr>`;
+  } catch (e) {
+    showFeedback("uploads-feedback", `載入失敗：${e.message}`, "error");
+  }
+}
+
+(async () => {
+  let user;
+  try {
+    user = await api("/api/auth/me");
+  } catch (e) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  document.getElementById("nav-container").innerHTML = renderNav(user, "my-uploads");
+  await loadUploads();
+})();
+</script>
+</body>
+</html>

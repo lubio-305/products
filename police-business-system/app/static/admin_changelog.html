@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>業務結構異動歷程</title>
+<link rel="stylesheet" href="/static/common.css" />
+</head>
+<body>
+<div id="nav-container"></div>
+<main>
+<h1>業務結構異動歷程</h1>
+<p>業務樹的新增／改名／搬移紀錄，供管理者事後檢視結構有沒有被承辦人隨意增生。</p>
+<div id="log-feedback" class="feedback"></div>
+<table>
+  <thead>
+    <tr><th>時間</th><th>操作人</th><th>動作</th><th>節點</th><th>內容</th></tr>
+  </thead>
+  <tbody id="log-body"></tbody>
+</table>
+</main>
+
+<script src="/static/icons.js"></script>
+<script src="/static/common.js"></script>
+<script>
+const ACTION_LABEL = { create: "新增", rename: "改名", move: "搬移" };
+
+async function loadLog() {
+  showFeedback("log-feedback", "載入中…", "info");
+  try {
+    const [log, nodes, users] = await Promise.all([
+      api("/api/changelog"),
+      api("/api/nodes"),
+      api("/api/users"),
+    ]);
+    hideFeedback("log-feedback");
+
+    const nodeName = Object.fromEntries(nodes.map((n) => [n.id, n.name]));
+    const userName = Object.fromEntries(users.map((u) => [u.id, u.display_name]));
+
+    document.getElementById("log-body").innerHTML = log
+      .map(
+        (e) => `<tr>
+          <td>${e.created_at.replace("T", " ").slice(0, 19)}</td>
+          <td>${userName[e.user_id] || e.user_id}</td>
+          <td>${ACTION_LABEL[e.action] || e.action}</td>
+          <td>${nodeName[e.node_id] || `#${e.node_id}`}</td>
+          <td>${e.detail || ""}</td>
+        </tr>`
+      )
+      .join("") || `<tr><td colspan="5">目前沒有異動紀錄</td></tr>`;
+  } catch (e) {
+    showFeedback("log-feedback", `載入失敗：${e.message}`, "error");
+  }
+}
+
+(async () => {
+  let user;
+  try {
+    user = await api("/api/auth/me");
+  } catch (e) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  if (!user.is_admin) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  document.getElementById("nav-container").innerHTML = renderNav(user, "changelog");
+  await loadLog();
+})();
+</script>
+</body>
+</html>

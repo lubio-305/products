@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>人員異動（交接）</title>
+<link rel="stylesheet" href="/static/common.css" />
+</head>
+<body>
+<div id="nav-container"></div>
+<main>
+<h1>人員異動（交接）</h1>
+<p>選擇離職/調任的人員，勾選要移轉的業務，指定新的承辦人與生效日期。</p>
+
+<div>
+  <label>從（原承辦人）</label>
+  <select id="from-user" onchange="loadFromUserNodes()"></select>
+
+  <label>移轉哪些業務</label>
+  <ul id="from-node-list"><li>請先選擇原承辦人</li></ul>
+
+  <label>到（新承辦人）</label>
+  <select id="to-user"></select>
+
+  <label>新承辦人的角色</label>
+  <select id="handover-role">
+    <option value="primary">主辦</option>
+    <option value="support">協辦</option>
+  </select>
+
+  <label>生效日期</label>
+  <input id="effective-date" type="date" />
+
+  <button id="handover-btn" onclick="submitHandover()">執行異動</button>
+  <div id="handover-feedback" class="feedback"></div>
+</div>
+</main>
+
+<script src="/static/icons.js"></script>
+<script src="/static/common.js"></script>
+<script>
+let users = [];
+
+async function loadUsers() {
+  users = await api("/api/users");
+  const options = users.map((u) => `<option value="${u.id}">${u.display_name}</option>`).join("");
+  document.getElementById("from-user").innerHTML = options;
+  document.getElementById("to-user").innerHTML = options;
+  await loadFromUserNodes();
+}
+
+async function loadFromUserNodes() {
+  const userId = document.getElementById("from-user").value;
+  const assignments = await api(`/api/users/${userId}/assignments`);
+  const list = document.getElementById("from-node-list");
+  if (assignments.length === 0) {
+    list.innerHTML = "<li>此人目前沒有負責任何業務</li>";
+    return;
+  }
+  const roleLabel = { primary: "主辦", support: "協辦" };
+  list.innerHTML = assignments
+    .map(
+      (a) =>
+        `<li><label><input type="checkbox" value="${a.node_id}" checked /> ${a.node_name}（${roleLabel[a.role]}）</label></li>`
+    )
+    .join("");
+}
+
+async function submitHandover() {
+  const btn = document.getElementById("handover-btn");
+  const nodeIds = Array.from(document.querySelectorAll("#from-node-list input[type=checkbox]:checked")).map((el) =>
+    Number(el.value)
+  );
+  const fromUserId = Number(document.getElementById("from-user").value);
+  const toUserId = Number(document.getElementById("to-user").value);
+
+  if (nodeIds.length === 0) {
+    showFeedback("handover-feedback", "請至少勾選一項要移轉的業務", "error");
+    return;
+  }
+  if (fromUserId === toUserId) {
+    showFeedback("handover-feedback", "原承辦人跟新承辦人不能是同一人", "error");
+    return;
+  }
+
+  try {
+    await withFeedback("handover-feedback", btn, "異動中…", `已移轉 ${nodeIds.length} 項業務`, () =>
+      api("/api/handover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from_user_id: fromUserId,
+          to_user_id: toUserId,
+          node_ids: nodeIds,
+          role: document.getElementById("handover-role").value,
+          effective_date: document.getElementById("effective-date").value,
+        }),
+      })
+    );
+    await loadFromUserNodes();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+(async () => {
+  let user;
+  try {
+    user = await api("/api/auth/me");
+  } catch (e) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  if (!user.is_admin) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  document.getElementById("nav-container").innerHTML = renderNav(user, "handover");
+  await loadUsers();
+})();
+</script>
+</body>
+</html>

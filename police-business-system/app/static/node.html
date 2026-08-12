@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>業務節點</title>
+<link rel="stylesheet" href="/static/common.css" />
+</head>
+<body>
+<div id="nav-container"></div>
+<main>
+<p><a href="/static/index.html">&larr; 回總覽</a></p>
+<h1 id="node-title">載入中...</h1>
+
+<section>
+  <h2>目前承辦人</h2>
+  <ul id="assignment-list"></ul>
+  <div id="assign-admin-only" style="display:none">
+    <h3>指派承辦人</h3>
+    <select id="assign-user"></select>
+    <select id="assign-role">
+      <option value="primary">主辦</option>
+      <option value="support">協辦</option>
+    </select>
+    <button id="assign-btn" onclick="assignUser()">指派</button>
+    <div id="assign-feedback" class="feedback"></div>
+  </div>
+</section>
+
+<section>
+  <h2>規定 / 計畫版本</h2>
+  <ul id="regulation-list"></ul>
+  <h3>上傳新版本</h3>
+  <input id="reg-title" placeholder="規定/計畫名稱" />
+  <input id="reg-effective" type="date" />
+  <input id="reg-file" type="file" />
+  <button id="reg-upload-btn" onclick="uploadRegulation()">上傳</button>
+  <div id="reg-feedback" class="feedback"></div>
+</section>
+
+<section>
+  <h2>公文 / 補充資料</h2>
+  <ul id="attachment-list"></ul>
+  <h3>上傳附件</h3>
+  <textarea id="att-summary" placeholder="重點摘要（3-5行）"></textarea>
+  <input id="att-file" type="file" />
+  <button id="att-upload-btn" onclick="uploadAttachment()">上傳</button>
+  <div id="att-feedback" class="feedback"></div>
+</section>
+
+<section>
+  <h2>敘獎週期</h2>
+  <ul id="award-list"></ul>
+  <h3>新增敘獎週期</h3>
+  <select id="cycle-type">
+    <option value="quarterly">每季</option>
+    <option value="semiannual">每半年</option>
+    <option value="annual">每年</option>
+  </select>
+  <input id="cycle-start" type="date" />
+  <button id="cycle-btn" onclick="createCycle()">建立</button>
+  <div id="cycle-feedback" class="feedback"></div>
+</section>
+</main>
+
+<script src="/static/icons.js"></script>
+<script src="/static/common.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const nodeId = params.get("id");
+
+const STATUS_LABEL = {
+  not_due: "尚未到期", open: "可開始敘獎", due_soon: "即將逾期", overdue: "已逾期", done: "已完成",
+};
+const ROLE_LABEL = { primary: "主辦", support: "協辦" };
+
+let currentUser = null;
+
+async function loadAll() {
+  const nodes = await api("/api/nodes");
+  const node = nodes.find((n) => String(n.id) === nodeId);
+  document.getElementById("node-title").textContent = node ? node.name : "找不到節點";
+
+  const assignments = await api(`/api/nodes/${nodeId}/assignments`);
+  document.getElementById("assignment-list").innerHTML = assignments
+    .map((a) => `<li>${a.display_name}（${ROLE_LABEL[a.role]}）</li>`)
+    .join("") || "<li>尚未指派</li>";
+
+  const regs = await api(`/api/nodes/${nodeId}/regulations`);
+  document.getElementById("regulation-list").innerHTML = regs
+    .map((r) => `<li>v${r.version_no} ${r.title}（生效日 ${r.effective_date}${r.expired_date ? "，失效日 " + r.expired_date : "，現行版本"}）
+      <a href="/api/nodes/${nodeId}/regulations/${r.id}/download">下載</a></li>`)
+    .join("") || "<li>尚未上傳</li>";
+
+  const atts = await api(`/api/nodes/${nodeId}/attachments`);
+  document.getElementById("attachment-list").innerHTML = atts
+    .map((a) => `<li>${a.original_filename}（${a.uploaded_at}）
+      <a href="/api/nodes/${nodeId}/attachments/${a.id}/download">下載</a><br/>摘要：${a.summary || "（未填寫）"}</li>`)
+    .join("") || "<li>尚未上傳</li>";
+
+  const records = await api(`/api/nodes/${nodeId}/awards/records`);
+  document.getElementById("award-list").innerHTML = records
+    .map((r) => `<li>${r.period_start} ~ ${r.period_end}（期限 ${r.deadline}）：${STATUS_LABEL[r.status]}
+      ${r.status !== "done" ? `<button onclick="completeRecord(${r.id})">標記完成</button>` : ""}</li>`)
+    .join("") || "<li>尚未設定敘獎週期</li>";
+}
+
+async function uploadRegulation() {
+  const btn = document.getElementById("reg-upload-btn");
+  const form = new FormData();
+  form.append("title", document.getElementById("reg-title").value);
+  form.append("effective_date", document.getElementById("reg-effective").value);
+  form.append("file", document.getElementById("reg-file").files[0]);
+  try {
+    await withFeedback("reg-feedback", btn, "上傳中…", "上傳成功", () =>
+      api(`/api/nodes/${nodeId}/regulations`, { method: "POST", body: form })
+    );
+    loadAll();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+async function uploadAttachment() {
+  const btn = document.getElementById("att-upload-btn");
+  const form = new FormData();
+  form.append("summary", document.getElementById("att-summary").value);
+  form.append("file", document.getElementById("att-file").files[0]);
+  try {
+    await withFeedback("att-feedback", btn, "上傳中…", "上傳成功", () =>
+      api(`/api/nodes/${nodeId}/attachments`, { method: "POST", body: form })
+    );
+    loadAll();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+async function createCycle() {
+  const btn = document.getElementById("cycle-btn");
+  try {
+    await withFeedback("cycle-feedback", btn, "建立中…", "建立成功", () =>
+      api(`/api/nodes/${nodeId}/awards/cycles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cycle_type: document.getElementById("cycle-type").value,
+          start_date: document.getElementById("cycle-start").value,
+        }),
+      })
+    );
+    loadAll();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+async function completeRecord(recordId) {
+  await api(`/api/nodes/${nodeId}/awards/records/${recordId}/complete`, { method: "POST" });
+  loadAll();
+}
+
+async function assignUser() {
+  const btn = document.getElementById("assign-btn");
+  const userId = Number(document.getElementById("assign-user").value);
+  const role = document.getElementById("assign-role").value;
+  try {
+    await withFeedback("assign-feedback", btn, "指派中…", "指派成功", () =>
+      api(`/api/nodes/${nodeId}/assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, role }),
+      })
+    );
+    loadAll();
+  } catch (e) { /* 已顯示錯誤訊息 */ }
+}
+
+async function setupAdminControls() {
+  if (!currentUser.is_admin) return;
+  document.getElementById("assign-admin-only").style.display = "block";
+  const users = await api("/api/users");
+  document.getElementById("assign-user").innerHTML = users
+    .map((u) => `<option value="${u.id}">${u.display_name}</option>`)
+    .join("");
+}
+
+(async () => {
+  try {
+    currentUser = await api("/api/auth/me");
+  } catch (e) {
+    window.location.href = "/static/index.html";
+    return;
+  }
+  document.getElementById("nav-container").innerHTML = renderNav(currentUser, "index");
+  await loadAll();
+  await setupAdminControls();
+})();
+</script>
+</body>
+</html>
