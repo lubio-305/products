@@ -91,4 +91,29 @@ li { margin-bottom: 4px; }
 .card .primary-user { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 6px; }
 .card .support { font-size: 0.75rem; color: var(--color-text-muted); }
 .card .card-status { margin-top: 8px; }
+.card .add-child { display: block; margin-top: 10px; font-size: 0.78rem; color: var(--color-text-muted); text-decoration: none; }
+.card .add-child:hover { color: var(--color-primary); }
 .empty-state { color: var(--color-text-muted); font-size: 0.9rem; padding: var(--space-md) 0; }
+
+/* 承辦人總覽卡片（第一層：以人為單位） */
+.staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-md); margin-top: var(--space-md); }
+.staff-card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.staff-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+.staff-card .name-row { display: flex; align-items: center; gap: 10px; }
+.staff-card .avatar { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.1rem; flex-shrink: 0; }
+.staff-card .name { font-weight: 700; font-size: 0.95rem; }
+.staff-card .count { font-size: 0.8rem; color: var(--color-text-muted); display: flex; align-items: center; gap: 6px; }
+.staff-card .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.staff-card .tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: #f0f1f3; color: var(--color-text-muted); }
+
+.staff-detail-header { display: flex; align-items: center; gap: 12px; margin: var(--space-md) 0; }
+.staff-detail-header .avatar { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-muted); text-decoration: none; font-size: 0.9rem; }
+.back-link:hover { color: var(--color-primary); }

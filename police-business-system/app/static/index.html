@@ -18,16 +18,26 @@
 <div id="app" style="display:none">
   <div id="nav-container"></div>
   <main>
-    <h1>業務總覽</h1>
+    <!-- 第一層：承辦人總覽 -->
+    <div id="staff-grid-view">
+      <h1>承辦人業務總覽</h1>
+      <p style="color:var(--color-text-muted); font-size:0.9rem; margin-top:-8px;">點選承辦人查看業務</p>
 
-    <div id="new-top-node" style="display:none">
-      <input id="new-top-node-name" placeholder="新業務大類名稱" style="max-width:300px; display:inline-block" />
-      <button id="new-top-node-btn" onclick="createTopNode()">＋ 新增頂層業務</button>
-      <div id="new-top-node-feedback" class="feedback"></div>
+      <div id="new-top-node" style="display:none">
+        <input id="new-top-node-name" placeholder="新業務大類名稱" style="max-width:300px; display:inline-block" />
+        <button id="new-top-node-btn" onclick="createTopNode()">＋ 新增頂層業務</button>
+        <div id="new-top-node-feedback" class="feedback"></div>
+      </div>
+
+      <div id="staff-cards" class="staff-grid"></div>
     </div>
 
-    <div id="staff-filter" class="staff-filter"></div>
-    <div id="cards" class="card-grid"></div>
+    <!-- 第二層：單一承辦人的業務清單 -->
+    <div id="staff-detail-view" style="display:none">
+      <a href="#" class="back-link" onclick="backToStaffGrid(); return false;">&larr; 回承辦人總覽</a>
+      <div id="staff-detail-header" class="staff-detail-header"></div>
+      <div id="staff-detail-cards" class="card-grid"></div>
+    </div>
   </main>
 </div>
 
@@ -37,7 +47,6 @@
 let currentUser = null;
 let allCards = [];
 let allUsers = [];
-let activeFilterUserId = null;
 
 async function login() {
   const username = document.getElementById("username").value;
@@ -73,55 +82,83 @@ const STATUS_LABEL = {
   overdue: ["已逾期", "dark-red"],
   done: ["已完成", "green"],
 };
+// 顯示在承辦人卡片上的「最需要注意」狀態，數字越小越優先
+const STATUS_PRIORITY = { overdue: 0, due_soon: 1, open: 2, not_due: 3, done: 4 };
 
 async function loadOverview() {
   const [cards, users] = await Promise.all([api("/api/nodes/cards"), api("/api/users")]);
   allCards = cards;
   allUsers = users;
-  renderStaffFilter();
-  renderCards();
+  renderStaffGrid();
 }
 
-function renderStaffFilter() {
-  const staffWithCards = allUsers.filter((u) => allCards.some((c) => c.primary_user && c.primary_user.id === u.id));
-  const buttons = staffWithCards
-    .map(
-      (u) => `<button
-        class="${activeFilterUserId === u.id ? "active" : ""}"
-        style="${activeFilterUserId === u.id ? `background:${u.color};border-color:${u.color}` : ""}"
-        onclick="setFilter(${u.id})">
-        <span class="swatch" style="background:${u.color}"></span>${u.display_name}
-      </button>`
-    )
+function initials(name) {
+  return name ? name[0] : "?";
+}
+
+function renderStaffGrid() {
+  document.getElementById("staff-cards").innerHTML = allUsers
+    .map((u) => {
+      const items = allCards.filter((c) => c.primary_user && c.primary_user.id === u.id);
+      const withStatus = items.filter((c) => c.award_status);
+      let statusBadge = "";
+      if (withStatus.length > 0) {
+        const worst = withStatus.reduce((a, b) =>
+          STATUS_PRIORITY[a.award_status] <= STATUS_PRIORITY[b.award_status] ? a : b
+        );
+        const [label, color] = STATUS_LABEL[worst.award_status];
+        statusBadge = `<span class="badge ${color}">${label}</span>`;
+      }
+      const tags = items
+        .slice(0, 4)
+        .map((c) => `<span class="tag">${c.name}</span>`)
+        .join("");
+      const more = items.length > 4 ? `<span class="tag">+${items.length - 4}</span>` : "";
+
+      return `<div class="staff-card" onclick="showStaffDetail(${u.id})">
+        <div class="name-row">
+          <div class="avatar" style="background:${u.color || "#9aa0a6"}">${initials(u.display_name)}</div>
+          <div class="name">${u.display_name}</div>
+        </div>
+        <div class="count">${icon("folder")}負責 ${items.length} 項 ${statusBadge}</div>
+        <div class="tags">${tags}${more}</div>
+      </div>`;
+    })
     .join("");
-  const clearBtn = activeFilterUserId
-    ? `<button onclick="setFilter(null)">${icon("filter")}顯示全部</button>`
-    : "";
-  document.getElementById("staff-filter").innerHTML = buttons + clearBtn;
 }
 
-function setFilter(userId) {
-  activeFilterUserId = userId;
-  renderStaffFilter();
-  renderCards();
+function showStaffDetail(userId) {
+  const user = allUsers.find((u) => u.id === userId);
+  if (!user) return;
+
+  document.getElementById("staff-grid-view").style.display = "none";
+  document.getElementById("staff-detail-view").style.display = "block";
+
+  document.getElementById("staff-detail-header").innerHTML = `
+    <div class="avatar" style="background:${user.color || "#9aa0a6"}">${initials(user.display_name)}</div>
+    <h1 style="margin:0">${user.display_name}</h1>
+  `;
+
+  const items = allCards.filter((c) => c.primary_user && c.primary_user.id === userId);
+  renderBusinessCards("staff-detail-cards", items);
 }
 
-function renderCards() {
-  const visible = activeFilterUserId
-    ? allCards.filter((c) => c.primary_user && c.primary_user.id === activeFilterUserId)
-    : allCards;
+function backToStaffGrid() {
+  document.getElementById("staff-detail-view").style.display = "none";
+  document.getElementById("staff-grid-view").style.display = "block";
+  loadOverview();
+}
 
-  if (visible.length === 0) {
-    document.getElementById("cards").innerHTML = `<div class="empty-state">目前沒有業務項目</div>`;
+function renderBusinessCards(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (items.length === 0) {
+    el.innerHTML = `<div class="empty-state">目前沒有負責的業務項目</div>`;
     return;
   }
 
-  document.getElementById("cards").innerHTML = visible
+  el.innerHTML = items
     .map((c) => {
       const color = c.primary_user ? c.primary_user.color : "#c7ccd1";
-      const owner = c.primary_user
-        ? `<span class="swatch" style="background:${color}"></span>${c.primary_user.display_name}`
-        : `${icon("user")}尚未指派`;
       const support = c.support_names.length
         ? `<div class="support">協辦：${c.support_names.join("、")}</div>`
         : "";
@@ -131,7 +168,6 @@ function renderCards() {
       return `<div class="card" style="--card-color:${color}" onclick="loadNode(${c.id})">
         ${c.breadcrumb ? `<div class="breadcrumb">${c.breadcrumb}</div>` : ""}
         <div class="title">${c.name}</div>
-        <div class="primary-user">${owner}</div>
         ${support}
         ${status}
         <a href="#" class="add-child" onclick="event.stopPropagation(); addChildNode(${c.id}, '${c.name.replace(/'/g, "\\'")}'); return false;" title="在這個業務下新增子項目">${icon("plus")} 新增子項目</a>
@@ -173,7 +209,18 @@ async function addChildNode(parentId, parentName) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim(), parent_id: parentId }),
     });
-    loadOverview();
+    // 重新載入資料，如果目前在承辦人詳細頁就留在原地刷新
+    const [cards] = await Promise.all([api("/api/nodes/cards")]);
+    allCards = cards;
+    if (document.getElementById("staff-detail-view").style.display !== "none") {
+      const header = document.getElementById("staff-detail-header");
+      const currentUserId = allUsers.find((u) => header.innerHTML.includes(u.display_name))?.id;
+      if (currentUserId) {
+        renderBusinessCards("staff-detail-cards", allCards.filter((c) => c.primary_user && c.primary_user.id === currentUserId));
+      }
+    } else {
+      renderStaffGrid();
+    }
   } catch (e) {
     alert(`新增失敗：${e.message}`);
   }
